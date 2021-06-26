@@ -40,6 +40,32 @@ def vgg8(args):
     return Model(input, output)
 
 
+def vgg16(args):
+    input = Input(shape=(224, 224, 3))
+    y = Input(shape=(1500,))
+
+    x = vgg_block(input, 64, 2)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = vgg_block(x, 128, 2)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = vgg_block(x, 256, 3)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = vgg_block(x, 512, 3)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = vgg_block(x, 512, 3)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = BatchNormalization()(x)
+    x = Dropout(0.5)(x)
+    x = Flatten()(x)
+    x = Dense(args.num_features, kernel_initializer='he_normal',
+                kernel_regularizer=regularizers.l2(weight_decay))(x)
+    x = BatchNormalization()(x)
+    output = Dense(1500, activation='softmax', kernel_regularizer=regularizers.l2(weight_decay))(x)
+
+    return Model([input,y], output)
+
+
 def vgg8_arcface(args):
     input = Input(shape=(28, 28, 1))
     y = Input(shape=(10,))
