@@ -42,7 +42,7 @@ def vgg8(args):
 
 def vgg16(args):
     input = Input(shape=(224, 224, 3))
-    y = Input(shape=(1500,))
+    #y = Input(shape=(1500,))
 
     x = vgg_block(input, 64, 2)
     x = MaxPooling2D(pool_size=(2, 2))(x)
@@ -63,7 +63,7 @@ def vgg16(args):
     x = BatchNormalization()(x)
     output = Dense(1500, activation='softmax', kernel_regularizer=regularizers.l2(weight_decay))(x)
 
-    return Model([input,y], output)
+    return Model(input, output)
 
 
 def vgg8_arcface(args):
