@@ -28,52 +28,20 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLRO
 import archs
 from metrics import *
 from scheduler import *
-from read_data import read_data_from_list
+from read_data import *
+from create_dataset import *
 
+
+train_list = '/home/iceicehyhy/Dataset/CASIA/CASIA_FIRST_10/pairs_train.txt'
 arch_names = archs.__dict__.keys()
-# data_dir = '/home/iceicehyhy/Dataset/CASIA/CASIA_FIRST_10'
-# img_height = 224
-# img_width = 224
-# batch_size = 8
 
-# train_ds = keras.preprocessing.image_dataset_from_directory(
-#   data_dir,
-#   validation_split=0.2,
-#   labels = 'inferred',
-#   label_mode = 'int',
-#   color_mode = 'rgb',
-#   subset="training",
-#   seed=123,
-#   image_size=(img_height, img_width),
-#   batch_size=batch_size)
-
-# val_ds = keras.preprocessing.image_dataset_from_directory(
-#   data_dir,
-#   validation_split=0.2,
-#   labels = 'inferred',
-#   label_mode = 'int',
-#   color_mode = 'rgb',
-#   subset="validation",
-#   seed=123,
-#   image_size=(img_height, img_width),
-#   batch_size=batch_size)
-
-# normalization_layer = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
-# normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-# normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
-# #image_batch, labels_batch = next(iter(normalized_ds))
-
-# # You could either manually tune this value, or set it to tf.data.AUTOTUNE, which will prompt the tf.data runtime to tune the value dynamically at runtime.
-# AUTOTUNE = tf.data.experimental.AUTOTUNE
-# train_ds = normalized_train_ds.cache().prefetch(buffer_size=AUTOTUNE)
-# val_ds = normalized_val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg8_cosface_casia',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg8',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
@@ -125,7 +93,7 @@ def main():
 
 
     # DATA LOADER
-    
+    """
     (X, y), (X_test, y_test) = read_data_from_list() #cifar100.load_data()
 
     # X = X[:, :, :, np.newaxis].astype('float32') / 255
@@ -135,7 +103,24 @@ def main():
 
     y = keras.utils.to_categorical(y, 10)
     y_test = keras.utils.to_categorical(y_test, 10)
+    """
+    imgList = default_reader(train_list)  
+    imgList = np.array(imgList)  
+    index = np.arange(imgList.shape[0])
+    np.random.shuffle(index)
+    cutoff_index = int(0.1 * imgList.shape[0])
+    train_index = index[cutoff_index:]
+    val_index = index[:cutoff_index]
 
+    # Parameters
+    params = {'dim': (224,224),
+            'batch_size': 1,
+            'n_classes': 10,
+            'n_channels': 3,
+            'shuffle': True}
+
+    training_generator = DataGenerator(imgList[train_index], **params)
+    validation_generator = DataGenerator(imgList[val_index], **params)
 
     if args.optimizer == 'SGD':
         optimizer = SGD(lr=args.lr, momentum=args.momentum)
@@ -158,6 +143,10 @@ def main():
     if args.scheduler == 'CosineAnnealing':
         callbacks.append(CosineAnnealingScheduler(T_max=args.epochs, eta_max=args.lr, eta_min=args.min_lr, verbose=1))
 
+    model.fit(training_generator,
+                    validation_data=validation_generator)
+                    #use_multiprocessing=True,
+                    #workers=6)
 
     # model.fit(
     #     train_ds,
@@ -167,19 +156,19 @@ def main():
     #     verbose=1
     # )
 
-    if 'face' in args.arch:
-        # callbacks.append(LambdaCallback(on_batch_end=lambda batch, logs: print('W has nan value!!') if np.sum(np.isnan(model.layers[-4].get_weights()[0])) > 0 else 0))
-        model.fit([X, y], y, validation_data=([X_test, y_test], y_test),
-            batch_size=args.batch_size,
-            epochs=args.epochs,
-            callbacks=callbacks,
-            verbose=1)
-    else:
-        model.fit(X, y, validation_data=(X_test, y_test),
-            batch_size=args.batch_size,
-            epochs=args.epochs,
-            callbacks=callbacks,
-            verbose=1)
+    # if 'face' in args.arch:
+    #     # callbacks.append(LambdaCallback(on_batch_end=lambda batch, logs: print('W has nan value!!') if np.sum(np.isnan(model.layers[-4].get_weights()[0])) > 0 else 0))
+    #     model.fit([X, y], y, validation_data=([X_test, y_test], y_test),
+    #         batch_size=args.batch_size,
+    #         epochs=args.epochs,
+    #         callbacks=callbacks,
+    #         verbose=1)
+    # else:
+    #     model.fit(X, y, validation_data=(X_test, y_test),
+    #         batch_size=args.batch_size,
+    #         epochs=args.epochs,
+    #         callbacks=callbacks,
+    #         verbose=1)
 
     # model.load_weights(os.path.join('models/%s/model.hdf5' %args.name))
     # if 'face' in args.arch:
